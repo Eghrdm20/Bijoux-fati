@@ -1,160 +1,237 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import { useEffect, useState } from "react";
 
 declare global {
   interface Window {
-    Pi: any
+    Pi: any;
   }
 }
 
 export default function HomePage() {
-  const [loading, setLoading] = useState(false)
-  const [user, setUser] = useState<any>(null)
-  const [message, setMessage] = useState("")
+  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
-  const loginWithPi = async () => {
-    try {
-      if (!window.Pi) {
-        alert("افتح التطبيق داخل Pi Browser")
-        return
-      }
-
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.Pi) {
       window.Pi.init({
         version: "2.0",
         sandbox: true,
-      })
+      });
+    }
+  }, []);
+
+  const loginWithPi = async () => {
+    try {
+      const scopes = ["payments", "username"];
 
       const auth = await window.Pi.authenticate(
-        ["username", "payments"],
-        function (payment: any) {
-          console.log("Incomplete payment", payment)
-        }
-      )
+        scopes,
+        onIncompletePaymentFound
+      );
 
-      setUser(auth.user)
-      setMessage("تم تسجيل الدخول: @" + auth.user.username)
+      setUser(auth.user);
     } catch (error) {
-      console.log(error)
-      alert("فشل تسجيل الدخول")
+      console.error(error);
+      alert("فشل تسجيل الدخول");
     }
-  }
+  };
 
-  const payWithPi = async () => {
+  const onIncompletePaymentFound = async (payment: any) => {
+    console.log("Incomplete payment found", payment);
+  };
+
+  const pay = async () => {
     try {
-      if (!user) {
-        alert("سجل الدخول أولاً")
-        return
+      if (!window.Pi) {
+        alert("افتح التطبيق داخل Pi Browser");
+        return;
       }
 
-      setLoading(true)
-      setMessage("جاري فتح الدفع...")
+      setLoading(true);
 
       const paymentData = {
         amount: 0.1,
         memo: "اختبار الدفع",
         metadata: {
-          productId: 1,
-          username: user.username,
+          productId: "test-product",
         },
-      }
+      };
 
-      window.Pi.createPayment(paymentData, {
+      const callbacks = {
         onReadyForServerApproval: async (paymentId: string) => {
+          console.log("Approving payment:", paymentId);
+
           await fetch(
-            "https://jatizfpvxvxlnzonljew.supabase.co/functions/v1/approve-payment",
+            "https://YOUR_PROJECT.supabase.co/functions/v1/approve-payment",
             {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentId }),
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                paymentId,
+              }),
             }
-          )
+          );
         },
 
         onReadyForServerCompletion: async (
           paymentId: string,
           txid: string
         ) => {
+          console.log("Completing payment:", paymentId);
+
           await fetch(
-            "https://jatizfpvxvxlnzonljew.supabase.co/functions/v1/complete-payment",
+            "https://YOUR_PROJECT.supabase.co/functions/v1/complete-payment",
             {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentId, txid }),
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                paymentId,
+                txid,
+              }),
             }
-          )
-
-          setMessage("تم الدفع بنجاح ✅")
-          alert("تم الدفع بنجاح ✅")
+          );
         },
 
-        onCancel: () => {
-          setMessage("تم إلغاء الدفع")
+        onCancel: function (paymentId: string) {
+          console.log("Payment cancelled", paymentId);
+          setLoading(false);
         },
 
-        onError: (error: any) => {
-          console.log(error)
-          setMessage("خطأ في الدفع")
+        onError: function (error: any, payment: any) {
+          console.error(error);
+          console.log(payment);
+          setLoading(false);
+          alert("فشل الدفع");
         },
-      })
+      };
+
+      await window.Pi.createPayment(paymentData, callbacks);
     } catch (error) {
-      console.log(error)
-      setMessage("فشل الاتصال")
-    } finally {
-      setLoading(false)
+      console.error(error);
+      alert("حدث خطأ");
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <main className="min-h-screen bg-[#f5f2ef] flex items-center justify-center p-6">
-      <div className="bg-white rounded-3xl shadow-xl p-5 max-w-sm w-full">
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#f5f5f5",
+        padding: "20px",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "420px",
+          background: "#fff",
+          borderRadius: "20px",
+          padding: "20px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+        }}
+      >
         <img
-          src="https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0"
-          alt="منتج"
-          className="w-full h-80 object-cover rounded-2xl"
+          src="https://images.unsplash.com/photo-1617038220319-276d3cfab638?q=80&w=1200&auto=format&fit=crop"
+          alt="product"
+          style={{
+            width: "100%",
+            borderRadius: "20px",
+            height: "320px",
+            objectFit: "cover",
+          }}
         />
 
-        <h1 className="text-4xl font-bold text-right mt-5">
+        <h1
+          style={{
+            fontSize: "42px",
+            fontWeight: "bold",
+            marginTop: "20px",
+            textAlign: "right",
+          }}
+        >
           منتج تجريبي
         </h1>
 
-        <p className="text-gray-600 text-right mt-2 text-xl">
+        <p
+          style={{
+            color: "#666",
+            textAlign: "right",
+            fontSize: "22px",
+          }}
+        >
           اختبار الدفع بـ Pi
         </p>
 
-        <div className="text-center text-purple-700 text-6xl font-bold mt-6">
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: "20px",
+            color: "#7b00ff",
+            fontSize: "60px",
+            fontWeight: "bold",
+          }}
+        >
           Pi 0.1
         </div>
 
         {!user ? (
           <button
             onClick={loginWithPi}
-            className="w-full mt-8 bg-purple-600 text-white py-4 rounded-2xl text-2xl font-bold"
+            style={{
+              width: "100%",
+              marginTop: "25px",
+              background: "#5e17eb",
+              color: "#fff",
+              border: "none",
+              padding: "18px",
+              borderRadius: "14px",
+              fontSize: "24px",
+              cursor: "pointer",
+            }}
           >
             تسجيل الدخول بـ Pi
           </button>
         ) : (
           <button
-            onClick={payWithPi}
+            onClick={pay}
             disabled={loading}
-            className="w-full mt-8 bg-purple-600 text-white py-4 rounded-2xl text-2xl font-bold"
+            style={{
+              width: "100%",
+              marginTop: "25px",
+              background: "#7b00ff",
+              color: "#fff",
+              border: "none",
+              padding: "18px",
+              borderRadius: "14px",
+              fontSize: "24px",
+              cursor: "pointer",
+            }}
           >
             {loading ? "جاري فتح الدفع..." : "ادفع الآن"}
           </button>
         )}
 
         {user && (
-          <p className="mt-4 text-center text-green-700 font-bold">
-            @{user.username}
-          </p>
-        )}
-
-        {message && (
-          <p className="mt-4 text-center text-gray-700">
-            {message}
+          <p
+            style={{
+              marginTop: "20px",
+              textAlign: "center",
+              color: "#444",
+            }}
+          >
+            مرحبًا {user.username}
           </p>
         )}
       </div>
     </main>
-  )
+  );
 }
