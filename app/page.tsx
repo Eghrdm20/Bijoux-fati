@@ -1,237 +1,191 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"
 
 declare global {
   interface Window {
-    Pi: any;
+    Pi: any
   }
 }
 
 export default function HomePage() {
-  const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(false)
+  const [user, setUser] = useState<any>(null)
+  const [message, setMessage] = useState("")
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.Pi) {
       window.Pi.init({
         version: "2.0",
         sandbox: true,
-      });
+      })
     }
-  }, []);
+  }, [])
+
+  const onIncompletePaymentFound = async (payment: any) => {
+    console.log("Incomplete payment found:", payment)
+  }
 
   const loginWithPi = async () => {
     try {
-      const scopes = ["payments", "username"];
-
-      const auth = await window.Pi.authenticate(
-        scopes,
-        onIncompletePaymentFound
-      );
-
-      setUser(auth.user);
-    } catch (error) {
-      console.error(error);
-      alert("فشل تسجيل الدخول");
-    }
-  };
-
-  const onIncompletePaymentFound = async (payment: any) => {
-    console.log("Incomplete payment found", payment);
-  };
-
-  const pay = async () => {
-    try {
       if (!window.Pi) {
-        alert("افتح التطبيق داخل Pi Browser");
-        return;
+        alert("افتح التطبيق داخل Pi Browser")
+        return
       }
 
-      setLoading(true);
+      const auth = await window.Pi.authenticate(
+        ["username", "payments"],
+        onIncompletePaymentFound
+      )
+
+      setUser(auth.user)
+      setMessage("تم تسجيل الدخول بنجاح")
+    } catch (error) {
+      console.error(error)
+      alert("فشل تسجيل الدخول")
+    }
+  }
+
+  const payWithPi = async () => {
+    try {
+      if (!user) {
+        alert("سجل الدخول أولاً")
+        return
+      }
+
+      setLoading(true)
+      setMessage("جاري فتح الدفع...")
 
       const paymentData = {
         amount: 0.1,
         memo: "اختبار الدفع",
         metadata: {
           productId: "test-product",
+          productName: "منتج تجريبي",
+          username: user.username,
         },
-      };
+      }
 
-      const callbacks = {
+      window.Pi.createPayment(paymentData, {
         onReadyForServerApproval: async (paymentId: string) => {
-          console.log("Approving payment:", paymentId);
+          setMessage("جاري تأكيد الدفع...")
 
-          await fetch(
-            "https://YOUR_PROJECT.supabase.co/functions/v1/approve-payment",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                paymentId,
-              }),
-            }
-          );
+          const res = await fetch("/api/approve-payment", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ paymentId }),
+          })
+
+          const data = await res.json()
+          console.log("Approve response:", data)
+
+          if (!res.ok) {
+            throw new Error("فشل approve-payment")
+          }
         },
 
         onReadyForServerCompletion: async (
           paymentId: string,
           txid: string
         ) => {
-          console.log("Completing payment:", paymentId);
+          setMessage("جاري إكمال الدفع...")
 
-          await fetch(
-            "https://YOUR_PROJECT.supabase.co/functions/v1/complete-payment",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                paymentId,
-                txid,
-              }),
-            }
-          );
+          const res = await fetch("/api/complete-payment", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ paymentId, txid }),
+          })
+
+          const data = await res.json()
+          console.log("Complete response:", data)
+
+          if (!res.ok) {
+            throw new Error("فشل complete-payment")
+          }
+
+          setMessage("تم الدفع بنجاح ✅")
+          alert("تم الدفع بنجاح ✅")
         },
 
-        onCancel: function (paymentId: string) {
-          console.log("Payment cancelled", paymentId);
-          setLoading(false);
+        onCancel: (paymentId: string) => {
+          console.log("Payment cancelled:", paymentId)
+          setMessage("تم إلغاء الدفع")
+          setLoading(false)
         },
 
-        onError: function (error: any, payment: any) {
-          console.error(error);
-          console.log(payment);
-          setLoading(false);
-          alert("فشل الدفع");
+        onError: (error: any, payment: any) => {
+          console.error("Payment error:", error)
+          console.log("Payment object:", payment)
+          setMessage("خطأ في الدفع")
+          setLoading(false)
+          alert("فشل الدفع")
         },
-      };
-
-      await window.Pi.createPayment(paymentData, callbacks);
+      })
     } catch (error) {
-      console.error(error);
-      alert("حدث خطأ");
-      setLoading(false);
+      console.error(error)
+      setMessage("حدث خطأ أثناء الدفع")
+      setLoading(false)
+      alert("حدث خطأ أثناء الدفع")
     }
-  };
+  }
 
   return (
     <main
-      style={{
-        minHeight: "100vh",
-        background: "#f5f5f5",
-        padding: "20px",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
+      dir="rtl"
+      className="min-h-screen bg-[#f5f2ef] flex items-center justify-center p-6"
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "420px",
-          background: "#fff",
-          borderRadius: "20px",
-          padding: "20px",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-        }}
-      >
+      <div className="bg-white rounded-3xl shadow-xl p-5 max-w-sm w-full">
         <img
           src="https://images.unsplash.com/photo-1617038220319-276d3cfab638?q=80&w=1200&auto=format&fit=crop"
-          alt="product"
-          style={{
-            width: "100%",
-            borderRadius: "20px",
-            height: "320px",
-            objectFit: "cover",
-          }}
+          alt="منتج تجريبي"
+          className="w-full h-80 object-cover rounded-2xl"
         />
 
-        <h1
-          style={{
-            fontSize: "42px",
-            fontWeight: "bold",
-            marginTop: "20px",
-            textAlign: "right",
-          }}
-        >
+        <h1 className="text-4xl font-bold text-right mt-5">
           منتج تجريبي
         </h1>
 
-        <p
-          style={{
-            color: "#666",
-            textAlign: "right",
-            fontSize: "22px",
-          }}
-        >
+        <p className="text-gray-600 text-right mt-2 text-xl">
           اختبار الدفع بـ Pi
         </p>
 
-        <div
-          style={{
-            textAlign: "center",
-            marginTop: "20px",
-            color: "#7b00ff",
-            fontSize: "60px",
-            fontWeight: "bold",
-          }}
-        >
+        <div className="text-center text-purple-700 text-6xl font-bold mt-6">
           Pi 0.1
         </div>
 
         {!user ? (
           <button
             onClick={loginWithPi}
-            style={{
-              width: "100%",
-              marginTop: "25px",
-              background: "#5e17eb",
-              color: "#fff",
-              border: "none",
-              padding: "18px",
-              borderRadius: "14px",
-              fontSize: "24px",
-              cursor: "pointer",
-            }}
+            className="w-full mt-8 bg-purple-700 text-white py-4 rounded-2xl text-2xl font-bold"
           >
             تسجيل الدخول بـ Pi
           </button>
         ) : (
           <button
-            onClick={pay}
+            onClick={payWithPi}
             disabled={loading}
-            style={{
-              width: "100%",
-              marginTop: "25px",
-              background: "#7b00ff",
-              color: "#fff",
-              border: "none",
-              padding: "18px",
-              borderRadius: "14px",
-              fontSize: "24px",
-              cursor: "pointer",
-            }}
+            className="w-full mt-8 bg-purple-700 text-white py-4 rounded-2xl text-2xl font-bold disabled:opacity-60"
           >
             {loading ? "جاري فتح الدفع..." : "ادفع الآن"}
           </button>
         )}
 
         {user && (
-          <p
-            style={{
-              marginTop: "20px",
-              textAlign: "center",
-              color: "#444",
-            }}
-          >
-            مرحبًا {user.username}
+          <p className="mt-4 text-center text-green-700 font-bold">
+            @{user.username}
+          </p>
+        )}
+
+        {message && (
+          <p className="mt-4 text-center text-gray-700">
+            {message}
           </p>
         )}
       </div>
     </main>
-  );
+  )
 }
