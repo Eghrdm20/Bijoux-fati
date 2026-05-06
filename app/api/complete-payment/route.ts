@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 
+const BASE_URL = "https://api.testnet.minepi.com"
+
 export async function GET() {
   return NextResponse.json({
     status: "complete-payment route is working",
@@ -8,35 +10,47 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { paymentId, txid } = await req.json()
+    const body = await req.json()
+
+    const paymentId = body.paymentId
+    const txid = body.txid
 
     if (!paymentId || !txid) {
       return NextResponse.json(
-        { error: "paymentId and txid are required" },
+        {
+          error: "paymentId and txid required",
+        },
         { status: 400 }
       )
     }
 
     const response = await fetch(
-      `https://api.minepi.com/v2/payments/${paymentId}/complete`,
+      `${BASE_URL}/v2/payments/${paymentId}/complete`,
       {
         method: "POST",
         headers: {
           Authorization: `Key ${process.env.PI_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ txid }),
+        body: JSON.stringify({
+          txid,
+        }),
       }
     )
 
-    const data = await response.json()
+    const text = await response.text()
 
-    return NextResponse.json(data, {
-      status: response.ok ? 200 : 500,
+    console.log("COMPLETE RESPONSE:", text)
+
+    return NextResponse.json({
+      success: response.ok,
+      response: text,
     })
-  } catch (error: any) {
+  } catch (e: any) {
     return NextResponse.json(
-      { error: error.message },
+      {
+        error: e.message,
+      },
       { status: 500 }
     )
   }
