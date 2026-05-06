@@ -10,42 +10,62 @@ declare global {
 
 export default function HomePage() {
   const [loading, setLoading] = useState(false)
+  const [user, setUser] = useState<any>(null)
+  const [message, setMessage] = useState("")
 
-  const payWithPi = async () => {
+  const loginWithPi = async () => {
     try {
-      setLoading(true)
-
-      if (typeof window === "undefined") return
-
-      const Pi = window.Pi
-
-      if (!Pi) {
+      if (!window.Pi) {
         alert("افتح التطبيق داخل Pi Browser")
         return
       }
 
-      Pi.init({
+      window.Pi.init({
         version: "2.0",
         sandbox: true,
       })
+
+      const auth = await window.Pi.authenticate(
+        ["username", "payments"],
+        function (payment: any) {
+          console.log("Incomplete payment", payment)
+        }
+      )
+
+      setUser(auth.user)
+      setMessage("تم تسجيل الدخول: @" + auth.user.username)
+    } catch (error) {
+      console.log(error)
+      alert("فشل تسجيل الدخول")
+    }
+  }
+
+  const payWithPi = async () => {
+    try {
+      if (!user) {
+        alert("سجل الدخول أولاً")
+        return
+      }
+
+      setLoading(true)
+      setMessage("جاري فتح الدفع...")
 
       const paymentData = {
         amount: 0.1,
         memo: "اختبار الدفع",
         metadata: {
           productId: 1,
+          username: user.username,
         },
       }
 
-      Pi.createPayment(paymentData, {
+      window.Pi.createPayment(paymentData, {
         onReadyForServerApproval: async (paymentId: string) => {
           await fetch(
-            "https://YOUR_SUPABASE_URL/functions/v1/approve-payment",
+            "https://jatizfpvxvxlnzonljew.supabase.co/functions/v1/approve-payment",
             {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ paymentId }),
             }
           )
@@ -56,34 +76,30 @@ export default function HomePage() {
           txid: string
         ) => {
           await fetch(
-            "https://YOUR_SUPABASE_URL/functions/v1/complete-payment",
+            "https://jatizfpvxvxlnzonljew.supabase.co/functions/v1/complete-payment",
             {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                paymentId,
-                txid,
-              }),
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentId, txid }),
             }
           )
 
+          setMessage("تم الدفع بنجاح ✅")
           alert("تم الدفع بنجاح ✅")
         },
 
         onCancel: () => {
-          alert("تم إلغاء الدفع")
+          setMessage("تم إلغاء الدفع")
         },
 
         onError: (error: any) => {
           console.log(error)
-          alert("خطأ في الدفع")
+          setMessage("خطأ في الدفع")
         },
       })
-    } catch (e) {
-      console.log(e)
-      alert("فشل الاتصال")
+    } catch (error) {
+      console.log(error)
+      setMessage("فشل الاتصال")
     } finally {
       setLoading(false)
     }
@@ -110,13 +126,34 @@ export default function HomePage() {
           Pi 0.1
         </div>
 
-        <button
-          onClick={payWithPi}
-          disabled={loading}
-          className="w-full mt-8 bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-2xl text-2xl font-bold"
-        >
-          {loading ? "جاري فتح الدفع..." : "ادفع الآن"}
-        </button>
+        {!user ? (
+          <button
+            onClick={loginWithPi}
+            className="w-full mt-8 bg-purple-600 text-white py-4 rounded-2xl text-2xl font-bold"
+          >
+            تسجيل الدخول بـ Pi
+          </button>
+        ) : (
+          <button
+            onClick={payWithPi}
+            disabled={loading}
+            className="w-full mt-8 bg-purple-600 text-white py-4 rounded-2xl text-2xl font-bold"
+          >
+            {loading ? "جاري فتح الدفع..." : "ادفع الآن"}
+          </button>
+        )}
+
+        {user && (
+          <p className="mt-4 text-center text-green-700 font-bold">
+            @{user.username}
+          </p>
+        )}
+
+        {message && (
+          <p className="mt-4 text-center text-gray-700">
+            {message}
+          </p>
+        )}
       </div>
     </main>
   )
