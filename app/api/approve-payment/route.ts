@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server"
 
+const BASE_URL = "https://api.testnet.minepi.com"
+
+export async function GET() {
+  return NextResponse.json({
+    status: "approve-payment route is working",
+  })
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
@@ -8,11 +16,20 @@ export async function POST(req: Request) {
 
     const paymentId = body.paymentId
 
+    if (!paymentId) {
+      return NextResponse.json(
+        {
+          error: "paymentId is required",
+        },
+        { status: 400 }
+      )
+    }
+
     console.log("PAYMENT ID:", paymentId)
-    console.log("API KEY:", process.env.PI_API_KEY)
+    console.log("USING TESTNET API")
 
     const response = await fetch(
-      `https://api.minepi.com/v2/payments/${paymentId}/approve`,
+      `${BASE_URL}/v2/payments/${paymentId}/approve`,
       {
         method: "POST",
         headers: {
