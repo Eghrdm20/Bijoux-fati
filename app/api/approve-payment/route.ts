@@ -2,7 +2,11 @@ import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {
   try {
-    const { paymentId } = await req.json()
+    const body = await req.json()
+
+    console.log("BODY:", body)
+
+    const paymentId = body.paymentId
 
     console.log("PAYMENT ID:", paymentId)
     console.log("API KEY:", process.env.PI_API_KEY)
@@ -18,18 +22,21 @@ export async function POST(req: Request) {
       }
     )
 
-    const data = await response.json()
+    const text = await response.text()
 
-    console.log("PI RESPONSE:", data)
+    console.log("PI RESPONSE:", text)
 
-    return NextResponse.json(data, {
-      status: response.ok ? 200 : 500,
+    return NextResponse.json({
+      success: response.ok,
+      response: text,
     })
   } catch (e: any) {
     console.log("ERROR:", e)
 
     return NextResponse.json(
-      { error: e.message },
+      {
+        error: e.message,
+      },
       { status: 500 }
     )
   }
