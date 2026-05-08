@@ -21,6 +21,12 @@ export function PiAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PiUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    // استعادة الجلسة من localStorage
+    const saved = localStorage.getItem("pi_user");
+    if (saved) setUser(JSON.parse(saved));
+  }, []);
+
   const login = async () => {
     if (!window.Pi) {
       alert("❌ يرجى فتح هذا التطبيق من Pi Browser");
@@ -30,13 +36,11 @@ export function PiAuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
-      // تهيئة SDK
       window.Pi.init({
         version: "2.0",
         sandbox: process.env.NEXT_PUBLIC_PI_NETWORK === 'testnet'
       });
 
-      // المصادقة
       const auth = await window.Pi.authenticate(
         ['username'],
         (payment: any) => {
@@ -44,12 +48,13 @@ export function PiAuthProvider({ children }: { children: ReactNode }) {
         }
       );
 
-      setUser({
+      const userData = {
         uid: auth.user.uid,
         username: auth.user.username
-      });
+      };
 
-      alert(`✅ مرحباً ${auth.user.username}!`);
+      setUser(userData);
+      localStorage.setItem("pi_user", JSON.stringify(userData));
 
     } catch (error: any) {
       alert("❌ فشل تسجيل الدخول: " + error.message);
@@ -60,7 +65,7 @@ export function PiAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
-    alert("👋 تم تسجيل الخروج");
+    localStorage.removeItem("pi_user");
   };
 
   return (
