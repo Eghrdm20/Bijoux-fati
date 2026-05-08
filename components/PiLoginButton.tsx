@@ -1,6 +1,6 @@
 "use client";
 
-import { usePiAuth } from "@/contexts/PiAuthContext";
+import { usePiAuth } from "@/contexts/pi-auth-context";
 
 export default function PiLoginButton() {
   const { user, isLoading, isAuthenticated, login, logout } = usePiAuth();
