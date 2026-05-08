@@ -29,15 +29,12 @@ export default function PiPayment({ product, quantity }: PiPaymentProps) {
     setError(null);
 
     try {
-      // التحقق من Pi Browser
       if (!window.Pi) {
         alert("❌ يرجى فتح هذا التطبيق من Pi Browser");
         setError("Not in Pi Browser");
         return;
       }
 
-      // ✅ تهيئة Pi SDK - ضروري جداً!
-      alert("🔵 جاري ته // ✅ تهيئة Pi SDK - ضروري جداً!
       alert("🔵 جاري تهيئة Pi SDK...");
       
       window.Pi.init({
@@ -47,7 +44,6 @@ export default function PiPayment({ product, quantity }: PiPaymentProps) {
       
       alert("✅ تم تهيئة Pi SDK");
 
-      // الخطوة 1: المصادقة
       alert("🔵 الخطوة 1: جاري المصادقة...");
 
       const auth = await window.Pi.authenticate(
@@ -61,7 +57,6 @@ export default function PiPayment({ product, quantity }: PiPaymentProps) {
       const userId = auth.user.uid;
       alert("✅ تم المصادقة! المستخدم: " + auth.user.username);
 
-      // الخطوة 2: إنشاء الدفع
       alert("🔵 الخطوة 2: جاري إنشاء الدفع...");
 
       const paymentData = {
@@ -76,7 +71,7 @@ export default function PiPayment({ product, quantity }: PiPaymentProps) {
 
       const callbacks = {
         onReadyForServerApproval: async (paymentId: string) => {
-          alert("🔵 الخطوة 3: جاري الموافقة على الدفع...");
+          alert("🔵 الخطوة 3: جاري الموافقة...");
           
           try {
             const response = await fetch("/api/payments/approve", {
@@ -183,8 +178,7 @@ export default function PiPayment({ product, quantity }: PiPaymentProps) {
           fontSize: "18px",
           fontWeight: "bold",
           cursor: loading ? "not-allowed" : "pointer",
-          width: "100%",
-          transition: "background-color 0.2s"
+          width: "100%"
         }}
       >
         {loading ? "⏳ جاري المعالجة..." : `💎 ادفع ${product.price * quantity} Pi`}
