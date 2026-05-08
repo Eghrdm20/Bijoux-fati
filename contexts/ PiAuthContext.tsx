@@ -22,7 +22,6 @@ export function PiAuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // استعادة الجلسة من localStorage
     const saved = localStorage.getItem("pi_user");
     if (saved) setUser(JSON.parse(saved));
   }, []);
