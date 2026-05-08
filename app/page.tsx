@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import PiPayment from "@/components/PiPayment";
 import PiLoginButton from "@/components/PiLoginButton";
-import { usePiAuth } from "@/contexts/PiAuthContext";
+import { usePiAuth } from "@/contexts/pi-auth-context";
 
 interface Product {
   id: string;
