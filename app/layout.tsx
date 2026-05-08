@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PiAuthProvider } from "@/contexts/PiAuthContext";
+import { PiAuthProvider } from "@/contexts/pi-auth-context";
 
 export const metadata: Metadata = {
   title: "Bijoux Fati - متجر المجوهرات",
