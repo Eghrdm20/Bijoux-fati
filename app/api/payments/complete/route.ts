@@ -1,6 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// التحقق من المتغيرات
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const piApiKey = process.env.PI_API_KEY;
+
+if (!supabaseUrl || !serviceRoleKey || !piApiKey) {
+  console.error('Missing env vars:', {
+    supabaseUrl: !!supabaseUrl,
+    serviceRoleKey: !!serviceRoleKey,
+    piApiKey: !!piApiKey
+  });
+  throw new Error('Missing required environment variables');
+}
+
+const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+export async function POST(request: NextRequest)
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
 // تهيئة Supabase Admin (للعمليات الإدارية)
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,6 +31,7 @@ const PI_API_KEY = process.env.PI_API_KEY;
 
 export async function POST(request: NextRequest) {
   try {
+    
     const { paymentId, txid } = await request.json();
 
     console.log('Complete called:', { paymentId, txid });
