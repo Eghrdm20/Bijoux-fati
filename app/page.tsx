@@ -1,191 +1,112 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
+import { useEffect, useState } from "react";
+import PiPayment from "@/components/PiPayment";
 
-declare global {
-  interface Window {
-    Pi: any
-  }
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string;
+  stock: number;
+  category: string;
 }
 
-export default function HomePage() {
-  const [loading, setLoading] = useState(false)
-  const [user, setUser] = useState<any>(null)
-  const [message, setMessage] = useState("")
+export default function Home() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.Pi) {
-      window.Pi.init({
-        version: "2.0",
-        sandbox: true,
-      })
-    }
-  }, [])
+    fetchProducts();
+  }, []);
 
-  const onIncompletePaymentFound = async (payment: any) => {
-    console.log("Incomplete payment found:", payment)
-  }
-
-  const loginWithPi = async () => {
+  const fetchProducts = async () => {
     try {
-      if (!window.Pi) {
-        alert("افتح التطبيق داخل Pi Browser")
-        return
-      }
-
-      const auth = await window.Pi.authenticate(
-        ["username", "payments"],
-        onIncompletePaymentFound
-      )
-
-      setUser(auth.user)
-      setMessage("تم تسجيل الدخول بنجاح")
-    } catch (error) {
-      console.error(error)
-      alert("فشل تسجيل الدخول")
+      const response = await fetch("/api/products");
+      const data = await response.json();
+      
+      if (!response.ok) throw new Error(data.error);
+      
+      setProducts(data.products || []);
+      setLoading(false);
+    } catch (err: any) {
+      setError("خطأ: " + err.message);
+      setLoading(false);
     }
-  }
+  };
 
-  const payWithPi = async () => {
-    try {
-      if (!user) {
-        alert("سجل الدخول أولاً")
-        return
-      }
+  if (loading) return <div style={{textAlign: "center", padding: "50px"}}>⏳ جاري التحميل...</div>;
+  if (error) return <div style={{color: "red", padding: "20px"}}>❌ {error}</div>;
 
-      setLoading(true)
-      setMessage("جاري فتح الدفع...")
-
-      const paymentData = {
-        amount: 0.1,
-        memo: "اختبار الدفع",
-        metadata: {
-          productId: "test-product",
-          productName: "منتج تجريبي",
-          username: user.username,
-        },
-      }
-
-      window.Pi.createPayment(paymentData, {
-        onReadyForServerApproval: async (paymentId: string) => {
-          setMessage("جاري تأكيد الدفع...")
-
-          const res = await fetch("/api/approve-payment", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ paymentId }),
-          })
-
-          const data = await res.json()
-          console.log("Approve response:", data)
-
-          if (!res.ok) {
-            throw new Error("فشل approve-payment")
-          }
-        },
-
-        onReadyForServerCompletion: async (
-          paymentId: string,
-          txid: string
-        ) => {
-          setMessage("جاري إكمال الدفع...")
-
-          const res = await fetch("/api/complete-payment", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ paymentId, txid }),
-          })
-
-          const data = await res.json()
-          console.log("Complete response:", data)
-
-          if (!res.ok) {
-            throw new Error("فشل complete-payment")
-          }
-
-          setMessage("تم الدفع بنجاح ✅")
-          alert("تم الدفع بنجاح ✅")
-        },
-
-        onCancel: (paymentId: string) => {
-          console.log("Payment cancelled:", paymentId)
-          setMessage("تم إلغاء الدفع")
-          setLoading(false)
-        },
-
-        onError: (error: any, payment: any) => {
-          console.error("Payment error:", error)
-          console.log("Payment object:", payment)
-          setMessage("خطأ في الدفع")
-          setLoading(false)
-          alert("فشل الدفع")
-        },
-      })
-    } catch (error) {
-      console.error(error)
-      setMessage("حدث خطأ أثناء الدفع")
-      setLoading(false)
-      alert("حدث خطأ أثناء الدفع")
-    }
+  if (products.length === 0) {
+    return <div style={{textAlign: "center", padding: "50px"}}>⚠️ لا توجد منتجات متاحة</div>;
   }
 
   return (
-    <main
-      dir="rtl"
-      className="min-h-screen bg-[#f5f2ef] flex items-center justify-center p-6"
-    >
-      <div className="bg-white rounded-3xl shadow-xl p-5 max-w-sm w-full">
-        <img
-          src="https://images.unsplash.com/photo-1617038220319-276d3cfab638?q=80&w=1200&auto=format&fit=crop"
-          alt="منتج تجريبي"
-          className="w-full h-80 object-cover rounded-2xl"
-        />
+    <div style={{padding: "20px", maxWidth: "1200px", margin: "0 auto"}}>
+      <h1 style={{textAlign: "center", color: "#8b5cf6"}}>💎 Bijoux Fati</h1>
+      
+      {selectedProduct ? (
+        <div style={{
+          maxWidth: "500px",
+          margin: "20px auto",
+          padding: "20px",
+          border: "2px solid #8b5cf6",
+          borderRadius: "12px",
+          backgroundColor: "#faf5ff"
+        }}>
+          <button onClick={() => setSelectedProduct(null)}>← رجوع</button>
+          <img src={selectedProduct.image_url} alt={selectedProduct.name} style={{width: "100%", height: "300px", objectFit: "cover", borderRadius: "8px", margin: "15px 0"}} />
+          <h2>{selectedProduct.name}</h2>
+          <p>{selectedProduct.description}</p>
+          <p style={{fontSize: "24px", fontWeight: "bold", color: "#8b5cf6"}}>{selectedProduct.price} Pi</p>
+          <p>المخزون: {selectedProduct.stock}</p>
+          
+          <div style={{margin: "15px 0"}}>
+            <label>الكمية: </label>
+            <input 
+              type="number" 
+              min={1} 
+              max={selectedProduct.stock}
+              value={quantity}
+              onChange={(e) => setQuantity(Math.min(parseInt(e.target.value) || 1, selectedProduct.stock))}
+              style={{width: "60px", padding: "8px"}}
+            />
+          </div>
 
-        <h1 className="text-4xl font-bold text-right mt-5">
-          منتج تجريبي
-        </h1>
-
-        <p className="text-gray-600 text-right mt-2 text-xl">
-          اختبار الدفع بـ Pi
-        </p>
-
-        <div className="text-center text-purple-700 text-6xl font-bold mt-6">
-          Pi 0.1
+          <PiPayment product={selectedProduct} quantity={quantity} />
         </div>
-
-        {!user ? (
-          <button
-            onClick={loginWithPi}
-            className="w-full mt-8 bg-purple-700 text-white py-4 rounded-2xl text-2xl font-bold"
-          >
-            تسجيل الدخول بـ Pi
-          </button>
-        ) : (
-          <button
-            onClick={payWithPi}
-            disabled={loading}
-            className="w-full mt-8 bg-purple-700 text-white py-4 rounded-2xl text-2xl font-bold disabled:opacity-60"
-          >
-            {loading ? "جاري فتح الدفع..." : "ادفع الآن"}
-          </button>
-        )}
-
-        {user && (
-          <p className="mt-4 text-center text-green-700 font-bold">
-            @{user.username}
-          </p>
-        )}
-
-        {message && (
-          <p className="mt-4 text-center text-gray-700">
-            {message}
-          </p>
-        )}
-      </div>
-    </main>
-  )
+      ) : (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          gap: "20px",
+          marginTop: "30px"
+        }}>
+          {products.map((product) => (
+            <div 
+              key={product.id}
+              onClick={() => {setSelectedProduct(product); setQuantity(1);}}
+              style={{
+                border: "1px solid #e0e0e0",
+                borderRadius: "12px",
+                padding: "15px",
+                cursor: "pointer",
+                backgroundColor: "white"
+              }}
+            >
+              <img src={product.image_url} alt={product.name} style={{width: "100%", height: "200px", objectFit: "cover", borderRadius: "8px"}} />
+              <h3>{product.name}</h3>
+              <p style={{color: "#666"}}>{product.description}</p>
+              <p style={{fontSize: "20px", fontWeight: "bold", color: "#8b5cf6"}}>{product.price} Pi</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
