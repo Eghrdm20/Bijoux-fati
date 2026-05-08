@@ -1,29 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// التحقق من المتغيرات
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const piApiKey = process.env.PI_API_KEY;
+// تهيئة Supabase - نؤجلها إلى وقت التشغيل
+let supabaseAdmin: ReturnType<typeof createClient> | null = null;
 
-if (!supabaseUrl || !serviceRoleKey || !piApiKey) {
-  console.error('Missing env vars:', {
-    supabaseUrl: !!supabaseUrl,
-    serviceRoleKey: !!serviceRoleKey,
-    piApiKey: !!piApiKey
-  });
-  throw new Error('Missing required environment variables');
+function getSupabaseAdmin() {
+  if (supabaseAdmin) return supabaseAdmin;
+  
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase configuration');
+  }
+  
+  supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+  return supabaseAdmin;
 }
-
-const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
 export async function POST(request: NextRequest) {
   try {
+    const piApiKey = process.env.PI_API_KEY;
+    
+    if (!piApiKey) {
+      return NextResponse.json(
+        { error: 'PI_API_KEY not configured' },
+        { status: 500 }
+      );
+    }
+
     const { paymentId, txid } = await request.json();
 
     console.log('Complete called:', { paymentId, txid });
 
-    // 1. التحقق من البيانات
     if (!paymentId || !txid) {
       return NextResponse.json(
         { error: 'paymentId and txid are required' },
@@ -31,7 +40,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. إكمال الدفع عبر Pi API
+    // إكمال الدفع عبر Pi API
     const piResponse = await fetch(
       `https://api.minepi.com/v2/payments/${paymentId}/complete`,
       {
@@ -53,8 +62,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. جلب الطلب من Supabase
-    const { data: order, error: orderError } = await supabaseAdmin
+    // جلب Supabase
+    let db;
+    try {
+      db = getSupabaseAdmin();
+    } catch (dbError: any) {
+      console.error('Supabase init error:', dbError);
+      return NextResponse.json(
+        { error: 'Database not configured: ' + dbError.message },
+        { status: 500 }
+      );
+    }
+
+    // جلب الطلب
+    const { data: order, error: orderError } = await db
       .from('orders')
       .select('*, products(*)')
       .eq('payment_id', paymentId)
@@ -68,8 +89,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. تحديث حالة الطلب
-    const { error: updateError } = await supabaseAdmin
+    // تحديث الحالة
+    await db
       .from('orders')
       .update({
         status: 'completed',
@@ -78,22 +99,13 @@ export async function POST(request: NextRequest) {
       })
       .eq('payment_id', paymentId);
 
-    if (updateError) {
-      console.error('Update order error:', updateError);
-    }
-
-    // 5. إنقاص المخزون
+    // إنقاص المخزون
     if (order.products && order.quantity > 0) {
       const newStock = Math.max(0, order.products.stock - order.quantity);
-      
-      const { error: stockError } = await supabaseAdmin
+      await db
         .from('products')
         .update({ stock: newStock })
         .eq('id', order.product_id);
-
-      if (stockError) {
-        console.error('Stock update error:', stockError);
-      }
     }
 
     return NextResponse.json({
