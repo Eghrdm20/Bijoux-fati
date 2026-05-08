@@ -1,26 +1,23 @@
-import type { Metadata } from "next"
-import Script from "next/script"
-import "./globals.css"
+import type { Metadata } from "next";
+import { PiAuthProvider } from "@/contexts/PiAuthContext";
 
 export const metadata: Metadata = {
-  title: "Bijoux Fati",
-  description: "Bijoux Fati Pi Network Store",
-}
+  title: "Bijoux Fati - متجر المجوهرات",
+  description: "متجر المجوهرات الفاخرة على Pi Network",
+};
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="ar" dir="rtl">
-      <body>
-        <Script
-          src="https://sdk.minepi.com/pi-sdk.js"
-          strategy="beforeInteractive"
-        />
-        {children}
+      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif", backgroundColor: "#f5f5f5" }}>
+        <PiAuthProvider>
+          {children}
+        </PiAuthProvider>
       </body>
     </html>
-  )
+  );
 }
