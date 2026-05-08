@@ -17,21 +17,8 @@ if (!supabaseUrl || !serviceRoleKey || !piApiKey) {
 
 const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-export async function POST(request: NextRequest)
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// تهيئة Supabase Admin (للعمليات الإدارية)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-const PI_API_KEY = process.env.PI_API_KEY;
-
 export async function POST(request: NextRequest) {
   try {
-    
     const { paymentId, txid } = await request.json();
 
     console.log('Complete called:', { paymentId, txid });
@@ -50,7 +37,7 @@ export async function POST(request: NextRequest) {
       {
         method: 'POST',
         headers: {
-          'Authorization': `Key ${PI_API_KEY}`,
+          'Authorization': `Key ${piApiKey}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ txid })
@@ -108,9 +95,6 @@ export async function POST(request: NextRequest) {
         console.error('Stock update error:', stockError);
       }
     }
-
-    // 6. إرسال إشعار (اختياري - يمكن إضافته لاحقاً)
-    // TODO: إرسال إشعار للمستخدم أو البائع
 
     return NextResponse.json({
       status: 'completed',
