@@ -1,36 +1,83 @@
-'use client'
+"use client";
 
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-const PiAuthContext = createContext<any>(null)
+interface PiUser {
+  uid: string;
+  username: string;
+}
 
-export function PiAuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState(null)
+interface PiAuthContextType {
+  user: PiUser | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: () => Promise<void>;
+  logout: () => void;
+}
 
-  async function login() {
-    if (typeof window === 'undefined' || !(window as any).Pi) {
-      alert('افتح التطبيق داخل Pi Browser')
-      return
+const PiAuthContext = createContext<PiAuthContextType | undefined>(undefined);
+
+export function PiAuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<PiUser | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const login = async () => {
+    if (!window.Pi) {
+      alert("❌ يرجى فتح هذا التطبيق من Pi Browser");
+      return;
     }
 
-    const Pi = (window as any).Pi
+    setIsLoading(true);
 
-    Pi.init({
-      version: '2.0',
-      sandbox: true
-    })
+    try {
+      // تهيئة SDK
+      window.Pi.init({
+        version: "2.0",
+        sandbox: process.env.NEXT_PUBLIC_PI_NETWORK === 'testnet'
+      });
 
-    const auth = await Pi.authenticate(['username', 'payments'], function () {})
-    setUser(auth.user)
-  }
+      // المصادقة
+      const auth = await window.Pi.authenticate(
+        ['username'],
+        (payment: any) => {
+          console.log("Incomplete payment:", payment);
+        }
+      );
+
+      setUser({
+        uid: auth.user.uid,
+        username: auth.user.username
+      });
+
+      alert(`✅ مرحباً ${auth.user.username}!`);
+
+    } catch (error: any) {
+      alert("❌ فشل تسجيل الدخول: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    alert("👋 تم تسجيل الخروج");
+  };
 
   return (
-    <PiAuthContext.Provider value={{ user, login }}>
+    <PiAuthContext.Provider value={{
+      user,
+      isLoading,
+      isAuthenticated: !!user,
+      login,
+      logout
+    }}>
       {children}
     </PiAuthContext.Provider>
-  )
+  );
 }
 
 export function usePiAuth() {
-  return useContext(PiAuthContext)
+  const context = useContext(PiAuthContext);
+  if (!context) throw new Error("usePiAuth must be used within PiAuthProvider");
+  return context;
 }
