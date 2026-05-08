@@ -24,8 +24,7 @@ export default function PiLoginButton() {
       <div style={{
         display: "flex",
         alignItems: "center",
-        gap: "10px",
-        padding: "10px"
+        gap: "10px"
       }}>
         <span>👤 {user.username}</span>
         <button
